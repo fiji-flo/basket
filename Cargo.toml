@@ -1,0 +1,25 @@
+[package]
+name = "basket"
+version = "0.0.1"
+authors = ["Florian Merz <me@fiji-flo.de>"]
+edition = "2018"
+license = "MIT"
+repository = "https://github.com/fiji-flo/basket"
+documentation = "https://docs.rs/crate/basket"
+keywords = ["Mozilla", "email"]
+categories = []
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
+
+[dependencies]
+url = "2"
+reqwest = { version = "0.10", features = ["json"] }
+failure = "0.1"
+failure_derive = "0.1"
+serde = "1"
+serde_json = "1"
+serde_derive = "1"
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
+serde_urlencoded = "0.7.0"
