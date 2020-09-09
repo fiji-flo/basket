@@ -7,6 +7,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
 use std::fmt;
+use std::sync::Arc;
 use url::Url;
 
 #[derive(Fail, Debug)]
@@ -123,16 +124,16 @@ struct Recover {
 
 #[derive(Clone)]
 pub struct Basket {
-    api_key: String,
-    basket_url: Url,
+    api_key: Arc<String>,
+    basket_url: Arc<Url>,
     client: Client,
 }
 
 impl Basket {
     pub fn new(api_key: impl Into<String>, basket_url: Url) -> Self {
         Basket {
-            api_key: api_key.into(),
-            basket_url,
+            api_key: Arc::new(api_key.into()),
+            basket_url: Arc::new(basket_url),
             client: Client::new(),
         }
     }

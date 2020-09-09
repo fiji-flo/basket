@@ -2,6 +2,7 @@
 name = "basket"
 version = "0.0.1"
 authors = ["Florian Merz <me@fiji-flo.de>"]
+description = "API Wrapper around mozilla basket(newsletters)"
 edition = "2018"
 license = "MIT"
 repository = "https://github.com/fiji-flo/basket"
