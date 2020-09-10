@@ -213,7 +213,6 @@ impl Basket {
             .send()
             .await?;
 
-        println!("{:?}", res);
         match res.json::<ApiResponse>().await {
             Ok(r) if r.status == Status::Ok => Ok(()),
             Ok(r) => Err(r.into()),
