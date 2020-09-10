@@ -72,7 +72,6 @@ pub struct Subscribe {
 
 #[derive(Serialize)]
 pub struct Unsubscribe {
-    email: String,
     newsletters: String,
     optout: bool,
 }
@@ -160,7 +159,34 @@ impl Basket {
             .await?;
 
         match res.json::<ApiResponse>().await {
-            Ok(r) if r.status == Status::Error => Ok(()),
+            Ok(r) if r.status == Status::Ok => Ok(()),
+            Ok(r) => Err(r.into()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub async fn subscribe_private(
+        &self,
+        email: impl Into<String>,
+        newsletters: Vec<String>,
+        opts: Option<SubscribeOpts>,
+    ) -> Result<(), Error> {
+        let form = Subscribe {
+            email: email.into(),
+            newsletters: newsletters.join(","),
+            opts,
+        };
+
+        let res = self
+            .client
+            .post(self.basket_url.join("/news/subscribe/")?)
+            .query(&[("api-key", self.api_key.as_str())])
+            .form(&form)
+            .send()
+            .await?;
+
+        match res.json::<ApiResponse>().await {
+            Ok(r) if r.status == Status::Ok => Ok(()),
             Ok(r) => Err(r.into()),
             Err(e) => Err(e.into()),
         }
@@ -168,25 +194,28 @@ impl Basket {
 
     pub async fn unsubscribe(
         &self,
-        email: impl Into<String>,
+        token: impl AsRef<str>,
         newsletters: Vec<String>,
         optout: bool,
     ) -> Result<(), Error> {
         let form = Unsubscribe {
-            email: email.into(),
             newsletters: newsletters.join(","),
             optout,
         };
 
         let res = self
             .client
-            .post(self.basket_url.join("/news/unsubscribe/")?)
+            .post(
+                self.basket_url
+                    .join(&format!("/news/unsubscribe/{}/", token.as_ref()))?,
+            )
             .form(&form)
             .send()
             .await?;
 
+        println!("{:?}", res);
         match res.json::<ApiResponse>().await {
-            Ok(r) if r.status == Status::Error => Ok(()),
+            Ok(r) if r.status == Status::Ok => Ok(()),
             Ok(r) => Err(r.into()),
             Err(e) => Err(e.into()),
         }

@@ -1,6 +1,6 @@
 [package]
 name = "basket"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Florian Merz <me@fiji-flo.de>"]
 description = "API Wrapper around mozilla basket(newsletters)"
 edition = "2018"
