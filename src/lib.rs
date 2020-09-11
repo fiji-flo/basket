@@ -34,9 +34,9 @@ impl fmt::Display for Status {
 #[serde(rename_all = "lowercase")]
 #[derive(Deserialize, Debug, Fail)]
 pub struct ApiResponse {
-    status: Status,
+    pub status: Status,
     #[serde(flatten)]
-    data: Value,
+    pub data: Value,
 }
 
 impl fmt::Display for ApiResponse {
@@ -63,44 +63,56 @@ impl Default for Format {
 }
 
 #[derive(Serialize)]
+pub enum YesNo {
+    Y,
+    N,
+}
+
+impl Default for YesNo {
+    fn default() -> Self {
+        Self::N
+    }
+}
+
+#[derive(Serialize)]
 pub struct Subscribe {
-    email: String,
-    newsletters: String,
+    pub email: String,
+    pub newsletters: String,
     #[serde(flatten)]
-    opts: Option<SubscribeOpts>,
+    pub opts: Option<SubscribeOpts>,
 }
 
 #[derive(Serialize)]
 pub struct Unsubscribe {
-    newsletters: String,
-    optout: bool,
+    pub newsletters: String,
+    pub optout: YesNo,
 }
 
 #[derive(Serialize, Default)]
 pub struct SubscribeOpts {
-    format: Option<Format>,
-    country: Option<String>,
-    lang: Option<String>,
-    optin: Option<bool>,
-    source_url: Option<String>,
-    trigger_welcome: Option<bool>,
-    sync: Option<bool>,
+    pub format: Option<Format>,
+    pub country: Option<String>,
+    pub lang: Option<String>,
+    pub optin: Option<YesNo>,
+    pub source_url: Option<String>,
+    pub trigger_welcome: Option<YesNo>,
+    pub sync: Option<YesNo>,
 }
 
 #[derive(Serialize)]
 pub struct UpdateUser {
-    email: Option<String>,
+    pub email: Option<String>,
     #[serde(flatten)]
-    opts: Option<UpdateUserOpts>,
+    pub opts: Option<UpdateUserOpts>,
 }
 
 #[derive(Serialize, Default)]
 pub struct UpdateUserOpts {
-    format: Option<Format>,
-    country: Option<String>,
-    lang: Option<String>,
-    optin: Option<bool>,
-    newsletters: Option<String>,
+    pub format: Option<Format>,
+    pub country: Option<String>,
+    pub lang: Option<String>,
+    pub optin: Option<YesNo>,
+    pub newsletters: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -123,9 +135,9 @@ struct Recover {
 
 #[derive(Clone)]
 pub struct Basket {
-    api_key: Arc<String>,
-    basket_url: Arc<Url>,
-    client: Client,
+    pub api_key: Arc<String>,
+    pub basket_url: Arc<Url>,
+    pub client: Client,
 }
 
 impl Basket {
@@ -196,7 +208,7 @@ impl Basket {
         &self,
         token: impl AsRef<str>,
         newsletters: Vec<String>,
-        optout: bool,
+        optout: YesNo,
     ) -> Result<(), Error> {
         let form = Unsubscribe {
             newsletters: newsletters.join(","),
@@ -328,5 +340,24 @@ impl Basket {
             Ok(r) => Err(r.into()),
             Err(e) => Err(e.into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::env::var;
+
+    #[tokio::test]
+    async fn recover() -> Result<(), Error> {
+        let basket =
+            if let (Ok(api_key), Ok(basket_url)) = (var("BASKET_API_KEY"), var("BASKET_URL")) {
+                Basket::new(api_key, Url::parse(&basket_url)?)
+            } else {
+                return Ok(());
+            };
+
+        basket.recover("foo@bar.com").await?;
+        Ok(())
     }
 }
