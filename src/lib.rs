@@ -1,23 +1,28 @@
 //! Rust client library for [basket](https://github.com/mozmeao/basket/)
 //! Documentation can be found at [http://basket.readthedocs.org/].
-use failure::Error;
-use failure::Fail;
 use reqwest::Client;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
 use std::fmt;
 use std::sync::Arc;
+use thiserror::Error;
 use url::Url;
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum BasketError {
-    #[fail(display = "token must be a uuid")]
+    #[error("token must be a uuid")]
     InvalidTokenFormat,
+    #[error(transparent)]
+    InvalidUrl(#[from] url::ParseError),
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+    #[error("api error: {0}")]
+    ApiError(#[from] ApiResponse),
 }
 
+#[derive(Deserialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
-#[derive(Deserialize, PartialEq, Debug)]
 pub enum Status {
     Ok,
     Error,
@@ -31,8 +36,8 @@ impl fmt::Display for Status {
     }
 }
 
+#[derive(Deserialize, Debug, Error)]
 #[serde(rename_all = "lowercase")]
-#[derive(Deserialize, Debug, Fail)]
 pub struct ApiResponse {
     pub status: Status,
     #[serde(flatten)]
@@ -156,7 +161,7 @@ impl Basket {
         email: impl Into<String>,
         newsletters: Vec<String>,
         opts: Option<SubscribeOpts>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), BasketError> {
         let form = Subscribe {
             email: email.into(),
             newsletters: newsletters.join(","),
@@ -182,7 +187,7 @@ impl Basket {
         email: impl Into<String>,
         newsletters: Vec<String>,
         opts: Option<SubscribeOpts>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), BasketError> {
         let form = Subscribe {
             email: email.into(),
             newsletters: newsletters.join(","),
@@ -209,7 +214,7 @@ impl Basket {
         token: impl AsRef<str>,
         newsletters: Vec<String>,
         optout: YesNo,
-    ) -> Result<(), Error> {
+    ) -> Result<(), BasketError> {
         let form = Unsubscribe {
             newsletters: newsletters.join(","),
             optout,
@@ -232,7 +237,7 @@ impl Basket {
         }
     }
 
-    pub async fn get_user(&self, token: impl AsRef<str>) -> Result<Value, Error> {
+    pub async fn get_user(&self, token: impl AsRef<str>) -> Result<Value, BasketError> {
         let res = self
             .client
             .get(
@@ -253,7 +258,7 @@ impl Basket {
         email: impl Into<String>,
         token: impl AsRef<str>,
         opts: Option<UpdateUserOpts>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), BasketError> {
         let form = UpdateUser {
             email: Some(email.into()),
             opts,
@@ -274,7 +279,7 @@ impl Basket {
         }
     }
 
-    pub async fn newsletters(&self) -> Result<Value, Error> {
+    pub async fn newsletters(&self) -> Result<Value, BasketError> {
         let res = self
             .client
             .get(self.basket_url.join("/news/newsletters/")?)
@@ -287,28 +292,7 @@ impl Basket {
         }
     }
 
-    pub async fn debug_user(
-        &self,
-        email: impl AsRef<str>,
-        supertoken: impl AsRef<str>,
-    ) -> Result<Value, Error> {
-        let res = self
-            .client
-            .get(self.basket_url.join("/news/debug-user/")?)
-            .query(&[
-                ("email", email.as_ref()),
-                ("supertoken", supertoken.as_ref()),
-            ])
-            .send()
-            .await?;
-        match res.json::<ApiResponse>().await {
-            Ok(r) if r.status == Status::Ok => Ok(r.data),
-            Ok(r) => Err(r.into()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub async fn lookup_user(&self, email: impl AsRef<str>) -> Result<Value, Error> {
+    pub async fn lookup_user(&self, email: impl AsRef<str>) -> Result<Value, BasketError> {
         let res = self
             .client
             .get(self.basket_url.join("/news/lookup-user/")?)
@@ -325,7 +309,7 @@ impl Basket {
         }
     }
 
-    pub async fn recover(&self, email: impl Into<String>) -> Result<(), Error> {
+    pub async fn recover(&self, email: impl Into<String>) -> Result<(), BasketError> {
         let form = Recover {
             email: email.into(),
         };
@@ -349,7 +333,7 @@ mod test {
     use std::env::var;
 
     #[tokio::test]
-    async fn recover() -> Result<(), Error> {
+    async fn recover() -> Result<(), BasketError> {
         let basket =
             if let (Ok(api_key), Ok(basket_url)) = (var("BASKET_API_KEY"), var("BASKET_URL")) {
                 Basket::new(api_key, Url::parse(&basket_url)?)
